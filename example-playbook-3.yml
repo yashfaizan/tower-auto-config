@@ -4,4 +4,4 @@
   connection: local
   tasks:
     - debug:
-        msg: "{{ linux_username }} and {{ linux_password }} display testing"
+        msg: "{{ linux_username }} and {{ linux_password }} display testingg"
