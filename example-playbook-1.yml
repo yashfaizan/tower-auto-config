@@ -4,4 +4,4 @@
   connection: local
   tasks:
     - debug:
-        msg: "Welcome to demo"
+        msg: "Welcome to demo run"
