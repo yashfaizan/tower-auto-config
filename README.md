@@ -1,2 +1,2 @@
 # tower-auto-config
-ansible tower auto config components
+ansible tower auto config copmonents test
