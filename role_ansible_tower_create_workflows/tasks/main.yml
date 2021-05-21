@@ -1,0 +1,16 @@
+---
+# tasks file for role_ansible_tower_create_workflows
+- name: "include | create workflow task"
+  include_tasks: create_workflows.yml
+  vars:
+    workflow_name: "{{ workflow_data[item | int ]['name'] }}"
+    org: "{{ tasks_inputs['infra_tasks']['organization'] }}"
+    workflow_schema: "{{ workflow_data[item | int ]['schema'] }}"
+    workflow_description: "{{ workflow_data[item | int ]['description'] }}"
+    category_name: "workflow_job_templates"
+    workflow_vars: "{{ workflow_data[item | int ]['extra_vars'] }}"
+    workflow_inventory: "{{ workflow_data[item | int ]['inventory'] }}"
+    add_schedule: "{{ workflow_data[item | int ]['add_schedule'] }}"
+    schedule_rule: "{{ workflow_data[item | int ]['rule'] }}"
+    schedule_name: "{{ workflow_data[item | int ]['schedule_name'] }}"
+  with_sequence: start=0 end="{{ workflow_data | count | int -1 }}"

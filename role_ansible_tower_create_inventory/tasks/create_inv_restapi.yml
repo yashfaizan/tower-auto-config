@@ -1,0 +1,48 @@
+---
+- block:
+    - name: "Pre check | inventories"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ inventory_name | urlencode}}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        task_id: "{{ pre_check_result.json.results[0].id }}"
+      when: pre_check_result.json.results | count > 0
+   
+    - name: "prepare | payload"
+      set_fact:
+        inv_payload: { "name": "{{ inventory_name }}", "description": "{{ inventory_description }}", "organization": "{{ org_id }}", "variables": "{{ inv_variables }}" }
+     
+    - name: "PATCH | if inv already exists"
+      block:
+        - name: "update the inv | using patch method"
+          include_role:
+            name: role_ansible_update_configurations
+          vars:
+            category: "inventories"
+            payload: "{{ inv_payload }}"
+            method: "PATCH"
+            configuration_id: "{{ task_id }}"
+      when:
+        - pre_check_result.json.results | count > 0
+
+    - name: "POST | create a new inv"
+      block:
+        - name: "create new inv | using POST method"
+          include_role:
+            name: role_ansible_create_configurations
+          vars:
+            category: "inventories"
+            payload: "{{ inv_payload }}"
+            method: "POST"
+      when:
+        - pre_check_result.json.results | count == 0
+      
+  rescue:
+    - fail:
+        msg: "Failed while creating inventory {{ inventory_name }}"

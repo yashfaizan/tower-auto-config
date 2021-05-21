@@ -1,0 +1,103 @@
+- block:
+    - set_fact:
+        is_exists: false
+    - name: "Pre check | template"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ template_name | urlencode }}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        template_id: "{{ pre_check_result.json.results[0].id }}"
+        template_inventory_id: "{{ pre_check_result.json.results[0].inventory }}"
+        template_project_id: "{{ pre_check_result.json.results[0].project }}"
+        is_exists: true
+      when: pre_check_result.json.results | count > 0
+
+    - block:
+        - name: "get | template project id"
+          include_role:
+            name: role_ansible_pre_check
+          vars:
+            category: "projects"
+            task_name: "{{ template_project | urlencode }}"
+            orgid: "{{ org }}"
+            get_id_with_org: true
+
+        - name: "set | template project id"
+          set_fact:
+            template_project_id: "{{ pre_check_result.json.results[0].id }}"
+
+        - name: "get | template inventory id"
+          include_role:
+            name: role_ansible_pre_check
+          vars:
+            category: "inventories"
+            task_name: "{{ template_inventory| urlencode }}"
+            orgid: "{{ org }}"
+            get_id_with_org: true
+
+        - name: "set | template inventory id"
+          set_fact:
+            template_inventory_id: "{{ pre_check_result.json.results[0].id }}"
+      when: is_exists == false
+
+
+
+    - name: "set | payload for template"
+      set_fact:
+        template_payload: { "name": "{{ template_name }}", "description": "{{ template_description }}", "job_type": "run", "inventory": "{{ template_inventory_id }}", "project": "{{ template_project_id }}", "playbook": "{{ template_playbook }}", "extra_vars": "{{ template_vars }}", "use_fact_cache": true, "ask_variables_on_launch": true, "allow_simultaneous": true }
+
+    - name: "PATCH | if template {{ template_name }} already exists"
+      include_role:
+        name: role_ansible_update_configurations
+      vars:
+        method: "PATCH"
+        configuration_id: "{{ template_id }}"
+        payload: "{{ template_payload }}"
+        category: "{{category_name }}"
+      register: template_result
+      when: is_exists == true
+
+    - name: "POST | if template {{ template_name }} doesnot exists"
+      include_role:
+        name: role_ansible_create_configurations
+      vars:
+        method: "POST"
+        payload: "{{ template_payload }}"
+        category: "{{category_name }}"
+      register: template_result
+      when: is_exists == false
+    - pause:
+        seconds: 2
+
+    - set_fact:
+        template_id: ""
+    - name: "Pre check | template"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ template_name | urlencode }}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        template_id: "{{ pre_check_result.json.results[0].id }}"
+      when: pre_check_result.json.results | count > 0
+      
+      
+    - name: "associate credentials to template"
+      include_tasks: associate-creds-to-template.yml
+      with_items: "{{ templates_data[item | int ]['credentials'] | list }}"
+      loop_control:
+        loop_var: add_creds
+      
+  rescue:
+    - fail:
+        msg: "Failed while creating template {{ template_name }}"

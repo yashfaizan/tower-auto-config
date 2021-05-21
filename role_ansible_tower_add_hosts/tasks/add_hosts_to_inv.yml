@@ -1,0 +1,37 @@
+---
+- block:
+    - name: "Pre check | hosts"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ inventory_name | urlencode}}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        task_id: "{{ pre_check_result.json.results[0].id }}"
+      when: pre_check_result.json.results | count > 0
+
+    - name: "add hosts | to inv"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/{{ category }}/{{ configuration_id }}/hosts/"
+        method: "POST"
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        body: { "name": "{{ hosts_name }}", "description": "{{ host_description }}","variables": "{{ hosts_variables }}" }
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 201
+      vars:
+        configuration_id: "{{ task_id }}"
+        category: inventories
+      with_items: "{{ hosts | list }}"
+      loop_control:
+        loop_var: hosts_name
+  rescue:
+    - debug:
+        msg: "Failed while creating inventory {{ inventory_name }}"

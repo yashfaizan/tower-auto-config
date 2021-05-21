@@ -1,0 +1,18 @@
+---
+- block:
+    - name: "Delete | {{ category }} {{ task_name }}"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/{{ category }}/{{ taskid }}/"
+        method: DELETE
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 204
+      register: delete_configuration_result
+
+  rescue:
+    - debug:
+        msg: "Failed while deleting {{ category }} {{ task_name }}"

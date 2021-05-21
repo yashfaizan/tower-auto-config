@@ -1,0 +1,16 @@
+---
+# tasks file for role_ansible_tower_create_templates
+- name: "run | template task"
+  include_tasks: create_templates.yml
+  vars:
+    template_name: "{{ templates_data[item | int ]['name'] }}"
+    ansible_pre_check: 0
+    template_description: "{{ templates_data[item | int ]['description'] }}"
+    template_project: "{{ templates_data[item | int ]['project'] }}"
+    template_playbook: "{{ templates_data[item | int ]['playbook'] }}"
+    template_credential: "{{ templates_data[item | int ]['credentials'] }}"
+    template_inventory: "{{ templates_data[item | int ]['inventory'] }}"
+    category_name: "job_templates"
+    template_vars: "{{ templates_data[item | int ]['vars'] }}"
+    org: "{{ org_id }}"
+  with_sequence: start=0 end="{{ templates_data | count | int -1 }}"

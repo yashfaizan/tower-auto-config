@@ -1,0 +1,51 @@
+- name: "pre check | custom credentials {{ creds_name }}"
+  block:
+    - set_fact:
+        is_exists: false
+    - name: "Pre check | credentials {{ creds_name }}"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ creds_name | urlencode}}"
+        get_id_with_org: false
+
+    - name: "set | task id"
+      set_fact:
+        custom_creds_id: "{{ pre_check_result.json.results[0].id }}"
+        is_exists: true
+      when: pre_check_result.json.results | count > 0
+
+- block:
+    - name: "set | extra vars"
+      set_fact:
+        extra_creds_user: "{{ ''.join(('{{',creds_user,'}}')) }}"
+        extra_creds_pass: "{{ ''.join(('{{',creds_pass,'}}')) }}"
+        expose_creds_user: "{{ creds_id }}_username"
+        expose_creds_pass: "{{ creds_id}}_password"
+
+    - name: "set | inputs and injectors"
+      set_fact:
+        custom_creds_inputs: { "fields": [  {   "id": "{{ creds_user }}",   "type": "string",   "label": "{{ creds_id }} Username", "help_text": "Use the varaible {{ creds_id }}_username in the playbook to get username"},  {   "id": "{{ creds_pass }}",   "type": "string",   "label": "{{ creds_id }} Password",   "secret": true ,"help_text": "Use the varaible {{ creds_id }}_password in the playbook to get password" } ], "required": [  "{{ creds_user }}",  "{{ creds_pass }}" ] }
+        custom_creds_injectors: '{ "extra_vars": {  "{{ expose_creds_pass }}":  "{{ extra_creds_pass }}",  "{{ expose_creds_user }}": "{{ extra_creds_user }}" }}'
+
+    - name: "set | payload"
+      set_fact:
+        custom_creds_payload: { "name": "{{ creds_name }}", "description": "{{ creds_description }}", "kind": "cloud", "inputs": "{{ custom_creds_inputs }}", "injectors": "{{ custom_creds_injectors }}" }
+
+    - name: "POST | if custom creds {{ creds_name }} doesnot exists"
+      include_role:
+        name: role_ansible_create_configurations
+      vars:
+        category: "{{ category_name }}"
+        payload: "{{ custom_creds_payload }}"
+        method: "POST"
+  when: is_exists == false
+  rescue:
+    - fail:
+        msg: "Failed to create custom creds {{ creds_name }}"
+        
+- name: "if custom creds {{ creds_name }} already exists"
+  debug:
+    msg: "Custom creds with name {{ creds_name }} already exists"
+  when: is_exists == true

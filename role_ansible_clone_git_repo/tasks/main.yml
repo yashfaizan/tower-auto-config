@@ -1,0 +1,25 @@
+
+- name: "check | for dest path"
+  stat:
+    path: "{{ clone_dest_path }}"
+  register: clone_path_result
+
+- name: "delete | dir if exists"
+  file:
+    path: "{{ clone_dest_path }}"
+    state: absent
+  when: clone_path_result.stat.exists == true
+  
+- name: "create | dir if exists"
+  file:
+    path: "{{ clone_dest_path }}"
+    state: directory
+    mode: '777'
+
+- name: "clone config files rep"
+  shell: |
+       git clone -b "{{ branch }}" "https://{{ bb_username | urlencode }}:{{ bb_password | urlencode }}@{{ git_repo_url }}"
+  args:
+    chdir: "{{ clone_dest_path }}"
+  no_log: true
+  

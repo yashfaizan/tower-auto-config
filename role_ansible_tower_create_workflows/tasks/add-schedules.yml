@@ -1,0 +1,17 @@
+- block:
+    - name: "add | schedule"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/workflow_job_templates/{{ workflow_id }}/schedules/"
+        method: POST
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        body: { "name": "{{ schedule_name }}", "enabled": true, "rrule": "{{ schedule_rule }}"}
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 201
+      register: schedule_details
+  rescue:
+    - fail:
+        msg: "Failed while scheduling workflow- {{ workflow_name }}"

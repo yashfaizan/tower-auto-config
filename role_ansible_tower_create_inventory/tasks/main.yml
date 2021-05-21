@@ -1,0 +1,10 @@
+---
+- name: "create | inv"
+  include_tasks: create_inv_restapi.yml
+  vars:
+    inventory_name: "{{ inv_data[ item | int ]['name'] }}"
+    inventory_description: "{{ inv_data[ item | int ]['description'] }}"
+    org: "{{ org_id }}"
+    inv_variables: "{{ inv_data[ item | int ]['variables'] }}"
+    category_name: "inventories"
+  with_sequence: start=0 end="{{ inv_data | count | int -1 }}"

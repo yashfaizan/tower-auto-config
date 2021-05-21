@@ -1,0 +1,89 @@
+- block:
+    - set_fact:
+        is_exists: false
+    - name: "Pre check | worflow"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ workflow_name | urlencode }}"
+        orgid: "{{ org_id }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        workflow_id: "{{ pre_check_result.json.results[0].id }}"
+        is_exists: true
+      when: pre_check_result.json.results | count > 0
+
+    - block:
+        - name: "delete | template"
+          include_role:
+            name: role_ansible_tower_delete_configuration
+          vars:
+            category: "{{ category_name }}"
+            taskid: "{{ workflow_id }}"
+            task_name: "{{ workflow_name | urlencode }}"
+      when: is_exists == true
+
+    - block:
+        - name: "get | workflow inv id"
+          include_role:
+            name: role_ansible_pre_check
+          vars:
+            category: "inventories"
+            task_name: "{{ workflow_inventory | urlencode }}"
+            orgid: "{{ org_id }}"
+            get_id_with_org: true
+
+        - name: "set | workflow inv id"
+          set_fact:
+            workflow_inventory_id: "{{ pre_check_result.json.results[0].id }}"
+          when: pre_check_result.json.results | count > 0
+
+    - name: "set |extra vars"
+      set_fact:
+        workflow_payload: { "extra_vars": "{{ workflow_vars }}"}
+- block:
+    - name: "create | workflow {{ workflow_name }}"
+      tower_workflow_template:
+        name: "{{ workflow_name }}"
+        organization: "{{ org }}"
+        schema: "{{ workflow_schema }}"
+        description: "{{ workflow_description }}"
+        inventory: "{{ workflow_inventory_id }}"
+        state: present
+        ask_extra_vars: yes
+        allow_simultaneous: yes
+        tower_host: "{{ tower_gui_url }}"
+        tower_username: "{{ tower_gui_username }}"
+        tower_password: "{{ tower_gui_password }}"
+        validate_certs: false
+      register: workflow_result
+
+    - name: "set | id"
+      set_fact:
+        work_id: "{{ workflow_result.id }}"
+      when: 
+        - workflow_result is succeeded
+        - workflow_vars | count > 0
+
+    - name: "PATCH | to update extra vars of workflow template"
+      include_role:
+        name: role_ansible_update_configurations
+      vars:
+        category: "{{ category_name }}"
+        configuration_id: "{{ work_id }}"
+        payload: "{{ workflow_payload }}"
+        method: "PATCH"
+      when: workflow_vars | count > 0
+      
+    - name: "Add | Schedule"
+      include_tasks: add-schedules.yml
+      vars:
+        workflow_id: "{{ work_id }}"
+      when: add_schedule | lower == "yes"
+
+  rescue:
+    - fail:
+        msg: "Failed while creating workflow- {{ workflow_name }}"

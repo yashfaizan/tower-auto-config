@@ -1,0 +1,15 @@
+---
+- name: "update | configurations in ansible tower"
+  block:
+    - name: "update | configurations"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/{{ category }}/{{ configuration_id }}/"
+        method: "{{ method }}"
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        body: "{{ payload }}"
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 200

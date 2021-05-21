@@ -1,0 +1,11 @@
+---
+- name: "create | inv"
+  include_tasks: add_hosts_to_inv.yml
+  vars:
+    inventory_name: "{{ hosts_data[ item | int ]['inventory'] }}"
+    host_description: "{{ hosts_data[ item | int ]['description'] }}"
+    hosts_variables: "{{ hosts_data[ item | int ]['hosts_vars'] }}"
+    category_name: "inventories"
+    hosts: "{{ hosts_data[ item | int ]['hosts'] }}"
+    org: "{{ org_id }}"
+  with_sequence: start=0 end="{{ hosts_data | count | int -1 }}"

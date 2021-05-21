@@ -1,0 +1,18 @@
+---
+- block:
+    - set_fact:
+        pre_check_result: ""
+        task_id: ""
+    - name: "Pre check | ansible"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/{{ category }}/?name={{ task_name }}&organization={{ orgid }}"
+        method: GET
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 200
+      register: pre_check_result
+

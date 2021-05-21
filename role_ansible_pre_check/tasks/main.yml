@@ -1,0 +1,8 @@
+---
+- name: "include | only get id task without org"
+  include_tasks: get_id_without_org.yml
+  when: get_id_with_org == false
+
+- name: "include | only get id task with org"
+  include_tasks: get_id_with_org.yml
+  when: get_id_with_org == true

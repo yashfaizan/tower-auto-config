@@ -1,0 +1,132 @@
+---
+- hosts: localhost
+  gather_facts: true
+  become: yes
+  tasks:
+    - name: "get | env"
+      set_fact:
+        current_env: "{{ lookup('env','tower_env') }}"
+
+    - name: "Clone | bitbucket repo"
+      include_role:
+        name: role_ansible_clone_git_repo
+      vars:
+        git_repo_url: "BitBucket.national.core.bbc.co.uk/scm/bbca/tower-auto-config-configuration-files.git"
+        clone_dest_path: "{{ clone_path }}"
+        branch: "{{ clone_branch }}"        
+
+    - name: "change mode to 777"
+      shell: chmod -R 755 "{{ clone_path }}/tower-auto-config-configuration-files/"
+      register: this
+      
+    - pause:
+        seconds: 5
+
+    - name: "include | json vars"
+      set_fact:
+        tasks_inputs: "{{ lookup('file', '{{ clone_path }}/tower-auto-config-configuration-files/config-files/{{ file_name}}_{{ current_env }}.json') }}"
+    - name: "include password files"
+      set_fact:
+        tasks_passwords: "{{ lookup('file', '{{ clone_path }}/tower-auto-config-configuration-files/creds/passwords_file_example.json')}}"
+
+    - name: "exclude org id for organizations and custom creds"
+      block:
+        - name: "Create| custom creds"
+          block:
+            - name: "set | custom creds value"
+              set_fact:
+                custom_creds: "{{ tasks_inputs['infra_tasks']['custom_credentials'] }}"
+            - include_role:
+                name: role_ansible_tower_create_custom_credentials
+          when: tasks_inputs['infra_tasks']['custom_credentials'] is defined
+          tags: custom-creds
+
+
+    - name: "include org id for inventories, credentials, templates, workflow"
+      block:
+        - name: "get | organization id"
+          include_role:
+            name: role_ansible_pre_check
+          vars:
+            task_name: "{{ tasks_inputs['infra_tasks']['organization'] }}"
+            category: "organizations"
+            get_id_with_org: false
+#
+        - name: "set | organization id"
+          set_fact:
+            org_id: "{{ pre_check_result.json.results[0].id }}"
+            
+        - name: "Create | inventory"
+          block:
+            - name: "set | inventory vaules"
+              set_fact:
+                inv_data: "{{ tasks_inputs['infra_tasks']['inventories'] }}"
+
+            - name: "Create | inventory"
+              include_role:
+                name: role_ansible_tower_create_inventory
+          when: tasks_inputs['infra_tasks']['inventories'] is defined
+          tags: inv
+
+        
+        - name: "Add hosts | inventory"
+          block:
+            - name: "set | inventory vaules"
+              set_fact:
+                hosts_data: "{{ tasks_inputs['infra_tasks']['add_hosts'] }}"
+
+            - name: "add hosts | inventory"
+              include_role:
+                name: role_ansible_tower_add_hosts
+
+          when: tasks_inputs['infra_tasks']['add_hosts'] is defined
+          tags: add-hosts
+
+        - name: "Create | credentials"
+          block:
+            - name: "set | credentials value"
+              set_fact:
+                creds_data: "{{ tasks_inputs['infra_tasks']['credentials'] }}"
+            - include_role:
+                name: role_ansible_tower_create_credentials
+          when: tasks_inputs['infra_tasks']['credentials'] is defined
+          ignore_errors: true
+          tags: creds
+          
+        - name: "Create | projects"
+          block:
+            - name: "set | project data"
+              set_fact:
+                project_data: "{{ tasks_inputs['infra_tasks']['projects'] }}"
+            - name: "include | project role"
+              include_role:
+                name: role_ansible_tower_create_projects
+            - pause:
+                seconds: 30
+          when: tasks_inputs['infra_tasks']['projects'] is defined
+          ignore_errors: true
+          tags: projects
+
+        - name: "Create | templates"
+          block:
+            - name: "set | templates data"
+              set_fact:
+                templates_data: "{{ tasks_inputs['infra_tasks']['templates'] }}"
+            - name: "include | templates role"
+              include_role:
+                name: role_ansible_tower_create_templates
+          when: tasks_inputs['infra_tasks']['templates'] is defined
+          ignore_errors: true
+          tags: templates
+
+        - name: "Creat | workflows"
+          block:
+            - name: "set | workflow data"
+              set_fact:
+                workflow_data: "{{ tasks_inputs['infra_tasks']['workflow'] }}"
+            - name: "include | workflow role"
+              include_role:
+                name: role_ansible_tower_create_workflows
+          when: tasks_inputs['infra_tasks']['workflow'] is defined
+          ignore_errors: true
+          tags: workflow

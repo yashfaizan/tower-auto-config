@@ -1,0 +1,35 @@
+- block:
+    - set_fact:
+        template_creds_id: ""    
+    - name: "Pre check | template"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "credentials"
+        task_name: "{{ add_creds | urlencode }}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | task id"
+      set_fact:
+        template_creds_id: "{{ pre_check_result.json.results[0].id }}"
+      when: pre_check_result.json.results | count > 0
+    
+    - pause:
+        seconds: 2
+    
+    - name: "associate creds to templates --> {{ add_creds }}"
+      uri:
+        url: "{{ tower_gui_url }}/api/v2/{{ category }}/{{ configuration_id }}/credentials/"
+        method: "POST"
+        url_username: "{{ tower_gui_username }}"
+        url_password: "{{ tower_gui_password }}"
+        body_format: json
+        body: '{ "id": {{ template_creds_id }} }'
+        validate_certs: false
+        force_basic_auth: true
+        return_content: yes
+        status_code: 204
+      vars:
+        configuration_id: "{{ template_id }}"
+        category: "job_templates"

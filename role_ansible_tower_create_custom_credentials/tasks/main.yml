@@ -1,0 +1,13 @@
+---
+# tasks file for role_ansible_tower_create_credentials
+- name: "create | custom creds"
+  include_tasks: create_custom_creds_restapi.yml
+  vars:
+    creds_name: "{{ custom_creds[ item | int]['name'] }}"
+    creds_description: "{{ custom_creds[ item | int]['description'] }}"
+    creds_id: "{{ custom_creds[ item | int]['id'] }}"
+    creds_user: "{{ custom_creds[ item | int]['id'] }}_user"
+    creds_pass: "{{ custom_creds[ item | int]['id'] }}_pass"
+    category_name: "credential_types"
+  with_sequence: start=0 end={{ custom_creds | count | int -1 }}
+  when: custom_creds is defined

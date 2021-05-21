@@ -1,0 +1,80 @@
+- name: "pre check | credentials {{ creds_name }}"
+  block:
+    - set_fact:
+        is_exists: false
+    - name: "Pre check | credentials {{ creds_name }}"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "{{ category_name }}"
+        task_name: "{{ creds_name | urlencode}}"
+        orgid: "{{ org }}"
+        get_id_with_org: true
+
+    - name: "set | org id"
+      set_fact:
+        creds_id: "{{ pre_check_result.json.results[0].id }}"
+        custom_creds_id: "{{ pre_check_result.json.results[0].credential_type }}"
+        is_exists: true
+      when: pre_check_result.json.results | count > 0
+
+- name: "get id of custom creds"
+  block:
+    - name: "get | custom creds id"
+      include_role:
+        name: role_ansible_pre_check
+      vars:
+        category: "credential_types"
+        task_name: "{{ creds_data[ item | int]['kind'] | urlencode}}"
+        get_id_with_org: false
+
+    - name: "set | creds id"
+      set_fact:
+        custom_creds_id: "{{ pre_check_result.json.results[0].id }}"
+  when: is_exists == false
+
+- name: "set payload for credentials"
+  block:
+    - name: "set | pass"
+      set_fact:
+        creds_pass: "{{ tasks_passwords['credentials'][creds_name]}}"
+      no_log: true
+
+    - block:            
+        - name: "set | payload when kind is not 'source control' or 'machine'"
+          set_fact:
+            creds_payload: '{ "name": "{{ creds_name }}", "description": "{{ creds_description }}", "organization": "{{ org_id }}", "credential_type": "{{ custom_creds_id }}","inputs": {        "{{ c_id }}_user": "{{ creds_username }}",        "{{ c_id }}_pass": "{{ creds_pass }}"    },    "user": null,    "team": null }'
+      when: 
+        - not creds_kind | lower == "source control"
+        - not creds_kind | lower == "machine"
+    - block:
+        - name: "set | payload when kind is 'source control' or 'machine'"
+          set_fact:
+            creds_payload: '{ "name": "{{ creds_name }}", "description": "{{ creds_description }}", "organization": "{{ org_id }}", "credential_type": "{{ custom_creds_id }}","inputs": {        "username": "{{ creds_username }}",        "password": "{{ creds_pass }}", "become_method": "{{ become_method }}", "become_username": "{{ become_user }}", "become_password": "{{ become_pass }}"   },    "user": null,    "team": null }'
+      when: creds_kind | lower == "machine"
+
+    - block:
+        - name: "set | payload when kind is 'source control' or 'machine'"
+          set_fact:
+            creds_payload: '{ "name": "{{ creds_name }}", "description": "{{ creds_description }}", "organization": "{{ org_id }}", "credential_type": "{{ custom_creds_id }}","inputs": {        "username": "{{ creds_username }}",        "password": "{{ creds_pass }}"    },    "user": null,    "team": null }'
+      when: creds_kind | lower == "source control"
+
+    - name: " PATCH | if credentials {{ creds_name }} already exists"
+      debug:
+        msg: "Credentials with name {{ creds_name }} already exists"
+      when:
+        - is_exists == true
+
+    - name: " POST | if credentials {{ creds_name }} doesnot exists"
+      include_role:
+        name: role_ansible_create_configurations
+      vars:
+        method: "POST"
+        category: "{{ category_name }}"
+        payload: "{{ creds_payload }}"
+      when:
+        - is_exists == false
+
+  rescue:
+    - fail:
+        msg: "Failed to create credentials {{ creds_name }}"

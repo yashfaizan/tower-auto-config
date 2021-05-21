@@ -1,0 +1,16 @@
+---
+# tasks file for role_ansible_tower_create_credentials    
+- name: "create | ssh creds"
+  include_tasks: create_ssh_creds.yml
+  vars:
+    creds_name: "{{ creds_data[ item | int]['name'] }}"
+    creds_description: "{{ creds_data[ item | int]['description'] }}"
+    creds_username: "{{ creds_data[ item | int]['username'] }}"
+    creds_kind: "{{ creds_data[ item | int]['kind'] }}"
+    c_id: "{{ creds_data[ item | int]['id'] }}"
+    category_name: "credentials"
+    org: "{{ org_id }}"
+    become_method: "{{ creds_data[ item | int]['become_method'] }}"
+    become_user: "{{ creds_data[ item | int]['become_username'] }}"
+    become_pass: "{{ creds_data[ item | int]['become_pass'] }}"
+  with_sequence: start=0 end="{{ creds_data | count | int -1 }}"
